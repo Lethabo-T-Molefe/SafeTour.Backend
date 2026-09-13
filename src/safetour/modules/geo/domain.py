@@ -14,7 +14,7 @@ from enum import StrEnum
 from typing import Any, Protocol
 from uuid import UUID
 
-from shapely.geometry import Point
+from shapely.geometry import LineString, Point
 from shapely.geometry.base import BaseGeometry
 
 
@@ -49,7 +49,7 @@ class Precinct:
 class Segment:
     id: UUID
     precinct_id: UUID
-    geometry: BaseGeometry
+    geometry: LineString
     modes: list[str]
 
 
@@ -69,6 +69,7 @@ class GeoReadRepository(Protocol):
     async def find_precinct_for_point(self, lon: float, lat: float) -> Precinct | None: ...
     async def find_nearest_segment(self, lon: float, lat: float, *, mode: str | None = None) -> Segment | None: ...
     async def list_segments_in_precinct(self, precinct_id: UUID) -> list[Segment]: ...
+    async def list_all_segments(self, *, mode: str | None = None) -> list[Segment]: ...
     async def list_attractions(
         self,
         *,

@@ -18,6 +18,8 @@ from safetour.modules.admin.schemas import (
     IngestResponse,
     ModelVersionResponse,
     ModerateReportRequest,
+    PowerStatusRequest,
+    PowerStatusResponse,
     PurgeResultResponse,
     RetrainRequest,
 )
@@ -66,6 +68,14 @@ async def record_bias_audit(
 async def promote(version_id: UUID, admin_id: CurrentAdminId, service: AdminServiceDep) -> ModelVersionResponse:
     version = await service.promote_model(admin_id, version_id)
     return ModelVersionResponse.model_validate(version, from_attributes=True)
+
+
+@router.post("/power-status", response_model=PowerStatusResponse)
+async def set_power_status(
+    admin_id: CurrentAdminId, body: PowerStatusRequest, service: AdminServiceDep
+) -> PowerStatusResponse:
+    status = await service.set_power_status(admin_id, body.precinct_id, body.active_outage, body.source)
+    return PowerStatusResponse.model_validate(status, from_attributes=True)
 
 
 @router.get("/reports/pending", response_model=list[ReportResponse])

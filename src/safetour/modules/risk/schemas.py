@@ -25,9 +25,3 @@ class HeatmapCellResponse(BaseModel):
     score: float | None
     band: RiskBand
     data_date: str | None
-
-
-class PowerStatusRequest(BaseModel):
-    precinct_id: UUID
-    active_outage: bool
-    source: str = "manual"

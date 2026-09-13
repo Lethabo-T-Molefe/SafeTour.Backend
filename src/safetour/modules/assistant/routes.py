@@ -28,4 +28,5 @@ async def assistant_plan(
     return AssistantPlanResponse(
         reply_text=result.reply_text,
         itinerary=ItineraryResponse.model_validate(result.itinerary, from_attributes=True),
+        used_llm=result.used_llm,
     )

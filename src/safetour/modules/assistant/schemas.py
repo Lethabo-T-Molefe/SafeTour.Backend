@@ -17,3 +17,6 @@ class AssistantPlanRequest(BaseModel):
 class AssistantPlanResponse(BaseModel):
     reply_text: str
     itinerary: ItineraryResponse
+    used_llm: bool = Field(
+        description="True if the contained LLM interpreted the request; false if the deterministic matcher did"
+    )

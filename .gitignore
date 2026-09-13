@@ -40,3 +40,8 @@ Thumbs.db
 
 # UV / tooling
 uv.lock.bak
+
+# Trained model artifacts (scripts/train_and_score_risk_model.py) — the
+# model_versions/model_evaluations/bias_audits rows in the DB are the
+# record of truth; the .joblib file is a local convenience, not committed.
+scripts/models/

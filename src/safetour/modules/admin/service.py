@@ -23,6 +23,7 @@ from safetour.modules.risk.domain import (
     CrimeStatisticRepository,
     ModelEvaluation,
     ModelVersion,
+    PowerStatus,
 )
 from safetour.modules.risk.service import RiskService
 
@@ -96,6 +97,19 @@ class AdminService:
         version = await self._risk.promote_model(version_id)  # raises PromotionBlockedError if the gate fails
         await self._log(actor_id, "promote_model", "model_version", str(version_id), {"label": version.label})
         return version
+
+    async def set_power_status(
+        self, actor_id: UUID, precinct_id: UUID, active_outage: bool, source: str
+    ) -> PowerStatus:
+        """FR-POW-1: raise (or clear) contextual risk for a confirmed outage
+        or load-reduction event. Confirmation is an administrative action —
+        it goes through the same audit trail as any other."""
+        status = await self._risk.record_power_status(precinct_id, active_outage, source)
+        await self._log(
+            actor_id, "set_power_status", "precinct", str(precinct_id),
+            {"active_outage": str(active_outage), "source": source},
+        )
+        return status
 
     async def moderate_report(self, actor_id: UUID, report_id: UUID, approve: bool) -> CommunityReport:
         report = await self._reports.moderate(report_id, approve=approve)

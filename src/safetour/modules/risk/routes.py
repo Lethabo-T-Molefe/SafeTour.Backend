@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -29,7 +30,7 @@ async def get_risk(
     time_band: TimeBand | None = Query(default=None),
 ) -> RiskLookupResponse:
     result = await service.lookup(lon, lat, _resolve_time_band(time_band))
-    return RiskLookupResponse(**result.__dict__)
+    return RiskLookupResponse(**asdict(result))
 
 
 @router.get("/heatmap", response_model=list[HeatmapCellResponse])
@@ -38,4 +39,4 @@ async def get_heatmap(
     time_band: TimeBand | None = Query(default=None),
 ) -> list[HeatmapCellResponse]:
     cells = await service.heatmap(_resolve_time_band(time_band))
-    return [HeatmapCellResponse(**cell.__dict__) for cell in cells]
+    return [HeatmapCellResponse(**asdict(cell)) for cell in cells]

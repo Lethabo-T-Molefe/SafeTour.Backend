@@ -46,14 +46,49 @@ modules/<name>/
 argon2id/JWT security helpers, exception handlers, and optional external
 clients (weather, power status) that degrade to "omit the signal" on failure.
 
-**A note on scope.** This is the initial repository for the project — the
-module boundaries, database schema, API contracts and auth are real and
-tested, but `risk`, `routing`, `itineraries` and `assistant` currently use
-clearly-marked naive/deterministic placeholder logic in place of the trained
-ML model, segment-graph router and content-based recommender, which are
-separate, later deliverables per the delivery timeline. Look for the
-docstrings marking each extension point (e.g. `risk/service.py`'s
-`_naive_fallback`).
+**A note on scope.** `risk` scores from a trained, calibrated model once one
+has been promoted (`scripts/train_and_score_risk_model.py`); `routing` plans
+over a real Dijkstra segment graph (`routing/graph.py`); `itineraries` ranks
+with a TF-IDF content-based recommender + safety re-rank
+(`itineraries/recommender.py`); `assistant` calls a real, contained LLM
+(`ChatAnthropic`) when `LLM_API_KEY` is set. Every one of these has a
+documented, tested deterministic fallback (NFR-REL-2) for when there is no
+promoted model yet, no connected segment graph for a given mode, or no LLM
+key configured — none of it is a hard dependency to boot the API.
+
+**Known gap.** FR-LOC-3's message/USSD fallback for feature phones is not
+built — it is a Should-priority requirement that needs a paid third-party
+telecom gateway (e.g. Africa's Talking) account and credentials this
+repository does not have. `notifications/service.py`'s alert log is the
+closest existing analogue (an always-available, no-external-dependency
+channel); wiring a real USSD/SMS gateway is a follow-on integration, not a
+code change that can be faked without a real account to test against.
+
+## Batch jobs (out-of-band, per 24.1)
+
+These run directly against the database — no API server needs to be
+running — matching "Model training: Google Colab or Kaggle notebooks" and
+"out-of-band batch jobs for ingestion and the machine-learning lifecycle":
+
+```bash
+# 1. Seed a small demo dataset for the Tshwane pilot area (synthetic — see
+#    the script's docstring). Creates an admin login too.
+uv run python scripts/seed_data.py
+
+# 2. Train, evaluate, bias-audit, score and (if it clears the MLR-2 quality
+#    gate) promote a risk model from whatever crime_statistics exist.
+uv run python scripts/train_and_score_risk_model.py
+
+# 3. Ingest a real SAPS-derived quarterly CSV later (FR-ADM-1) — validated
+#    and idempotent; see the script's docstring for the expected columns.
+uv run python scripts/ingest_saps_csv.py data/2025q4.csv --period 2025Q4
+```
+
+Re-running `train_and_score_risk_model.py` after ingesting a new quarter
+re-trains on the (now time-shifted) split and re-scores — the promotion
+gate is the same one `/admin/models/{v}/promote` enforces, so a run that
+does not clear ROC-AUC ≥ 0.80 / PR-AUC > base rate is reported plainly and
+promotes nothing, exactly like the HTTP path would.
 
 ## Quick start
 
@@ -85,15 +120,20 @@ migrations on boot.
 
 ### Migrations
 
-The first migration has not been generated yet — do this once against a
-running PostGIS instance (`docker compose up -d db` covers that):
+The initial schema migration (`alembic/versions/ce8089693f45_initial_schema.py`,
+all 25 tables) is committed and has been applied to a native local
+PostgreSQL 18 + PostGIS 3.6.2 install — no Docker required for this. Against
+a fresh database:
 
 ```bash
-uv run alembic revision --autogenerate -m "initial schema"
 uv run alembic upgrade head
 ```
 
-Subsequent schema changes follow the same two commands.
+Subsequent schema changes: `uv run alembic revision --autogenerate -m "..."`
+then `uv run alembic upgrade head`. `env.py` wires GeoAlchemy2's
+`render_item`/`include_object` helpers into both migration contexts, so
+autogenerate handles `Geometry` columns correctly and won't try to touch
+PostGIS's own `spatial_ref_sys` table.
 
 ### Tests / lint / types
 
@@ -136,5 +176,6 @@ user's own data; `admin/*` additionally requires `is_admin`. See
 - SQLAlchemy (async) + asyncpg + GeoAlchemy2/Shapely (PostGIS)
 - Alembic
 - Argon2id (`argon2-cffi`) + PyJWT
-- LangChain-core (contained, optional — see `assistant/service.py`)
+- scikit-learn, pandas, NumPy — risk model training + content-based recommender
+- LangChain + `langchain-anthropic` (contained, optional — see `assistant/service.py`)
 - Ruff, MyPy (strict), Pytest

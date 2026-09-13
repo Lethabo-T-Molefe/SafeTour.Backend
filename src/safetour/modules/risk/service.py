@@ -57,7 +57,7 @@ class HeatmapCell:
     data_date: str | None
 
 
-def _band_for(score: float) -> RiskBand:
+def band_for_score(score: float) -> RiskBand:
     if score <= settings.RISK_BAND_LOW_MAX:
         return RiskBand.LOW
     if score <= settings.RISK_BAND_MEDIUM_MAX:
@@ -181,7 +181,7 @@ class RiskService:
             unit_type=UnitType.PRECINCT,
             time_band=TimeBand.MIDDAY,
             score=score,
-            band=_band_for(score),
+            band=band_for_score(score),
             data_date=latest_period,
             top_features=top_features,
             source="naive_baseline",

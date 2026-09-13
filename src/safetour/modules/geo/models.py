@@ -9,11 +9,11 @@ from geoalchemy2 import Geography, Geometry
 from geoalchemy2.elements import WKBElement
 from geoalchemy2.functions import ST_Contains, ST_Distance, ST_DWithin, ST_MakePoint, ST_SetSRID
 from geoalchemy2.shape import from_shape, to_shape
-from shapely.geometry import Point
+from shapely.geometry import LineString, Point
 from shapely.geometry.base import BaseGeometry
-from sqlalchemy import ARRAY, ForeignKey, Integer, String, select
+from sqlalchemy import ForeignKey, Integer, String, select
 from sqlalchemy import cast as sql_cast
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
@@ -60,7 +60,9 @@ def _precinct_entity(row: PrecinctModel) -> Precinct:
 
 
 def _segment_entity(row: SegmentModel) -> Segment:
-    return Segment(id=row.id, precinct_id=row.precinct_id, geometry=to_shape(row.geometry), modes=list(row.modes))
+    return Segment(
+        id=row.id, precinct_id=row.precinct_id, geometry=cast(LineString, to_shape(row.geometry)), modes=list(row.modes)
+    )
 
 
 def _attraction_entity(row: AttractionStopModel) -> AttractionStop:
@@ -106,6 +108,13 @@ class SqlAlchemyGeoReadRepository:
 
     async def list_segments_in_precinct(self, precinct_id: UUID) -> list[Segment]:
         result = await self._session.execute(select(SegmentModel).where(SegmentModel.precinct_id == precinct_id))
+        return [_segment_entity(r) for r in result.scalars().all()]
+
+    async def list_all_segments(self, *, mode: str | None = None) -> list[Segment]:
+        query = select(SegmentModel)
+        if mode is not None:
+            query = query.where(SegmentModel.modes.contains([mode]))
+        result = await self._session.execute(query)
         return [_segment_entity(r) for r in result.scalars().all()]
 
     async def list_attractions(

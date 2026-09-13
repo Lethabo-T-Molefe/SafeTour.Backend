@@ -26,7 +26,10 @@ async def register(body: RegisterRequest, service: AuthServiceDep) -> AuthAccoun
     account = await service.register(
         RegisterInput(email=str(body.email), password=body.password, consent=body.consent)
     )
-    return AuthAccountResponse.model_validate(account, from_attributes=True)
+    return AuthAccountResponse(
+        id=account.id, email=str(account.email), is_admin=account.is_admin,
+        is_active=account.is_active, created_at=account.created_at,
+    )
 
 
 @router.post("/login", response_model=TokenResponse)

@@ -86,3 +86,18 @@ class AuditLogEntryResponse(BaseModel):
 class PurgeResultResponse(BaseModel):
     trip_shares: int
     checkins: int
+
+
+class PowerStatusRequest(BaseModel):
+    precinct_id: UUID
+    active_outage: bool
+    source: str = "manual"
+
+
+class PowerStatusResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    precinct_id: UUID
+    active_outage: bool
+    source: str
+    recorded_at: datetime
